@@ -1,72 +1,41 @@
-#include <vector>
+
+#ifndef ENVIRONMENT_HPP
+#define ENVIRONMENT_HPP
+
+#include <gsl/gsl_rng.h>
+#include <gsl/gsl_randist.h>
+#include <gsl/gsl_blas.h>
+
 #include <stdexcept>
 
 using namespace std;
 
 
-// A base class for a target of the foragers
-class Target
-{	
-public:
-	virtual double Payout() {return 0.0;};
-};
-
-
 // A constant source target, always providing the same reward
-class ConstantTarget : public Target
+class ConstantTarget
 {
 private:
-	double value;
+	double _value;
 
 public:
-	ConstantTarget(double val);
-	double Payout();
+	ConstantTarget(double val) {_value = val;}
+	double Payout() {return _value;};
 };
 /*************************************/
 
-// A binary target, producing either a reward or 0.0 according to some probability
-class BinaryTarget : public Target
-{
-private:
-	double prob;
-	double reward;
-public:
-	BinaryTarget(double p, double r);
-	double Payout();
-};
-
-
 // A discrete target, providing several possible rewards with different probabilities
-class DiscreteTarget : public Target
+class DiscreteTarget
 {
 private:
-	std::vector<double> probs;
-	std::vector<double> rewards;
+	gsl_rng* _randGen;
+	gsl_ran_discrete_t* _discretePdf;
+	gsl_vector* _values;
 
 public:
-	DiscreteTarget(std::vector<double> probs, std::vector<double> rewards);
+	DiscreteTarget(int N, double* probs, double* rewards);
+	~DiscreteTarget();
 	double Payout();
 };
 /********************************************************************************/
 
-
-
-
-// Simple target grid
-class Field
-{
-private:
-	Target* targets;
-};
-/**************************************************/
-
-
-
-// A simple field with constant, binary, and neutral targets, as
-// described in Niv, et. al. (2000)
-class BasicField : public Field
-{
-public:
-	BasicField(double certVal, double uncertVal, double uncertProb, double pctCert, double pctUncert);
-};
-/**********************************************************/
+#endif // ENVIRONMENT_HPP

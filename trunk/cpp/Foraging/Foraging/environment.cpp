@@ -1,6 +1,4 @@
 #include <cmath>
-#include <vector>
-#include <cstdlib>
 #include <ctime>
 
 #include <environment.hpp>
@@ -9,67 +7,37 @@
 using namespace std;
 
 
-// Implementation of the constant/deterministic target
-ConstantTarget::ConstantTarget(double val)
-{
-	this->value = val;
-}
-
-double ConstantTarget::Payout()
-{
-	return this->value;
-}
-/***************************************************/
-
-
-// Implementation of binary target
-BinaryTarget::BinaryTarget(double p, double r)
-{
-	if (0.0 > p || p > 1.0)
-		throw Exception("Probability outside [0,1]");
-
-	this->prob = p;
-	this->reward = r;
-}
-
-double BinaryTarget::Payout()
-{
-	srand((unsigned int)time(NULL));
-	double value = rand() / (double(RAND_MAX)+1);
-	if (value <= this->prob)
-		return this->reward;
-	else
-		return 0.0;
-}
-/***************************************************************/
-
-
 // Implementation of the discrete target
-DiscreteTarget::DiscreteTarget(std::vector<double> probs, std::vector<double> rewards)
+DiscreteTarget::DiscreteTarget(int N, double* probs, double* rewards)
 {
-	if (probs.size() != rewards.size())
-		throw Exception("Num rewards not equal to num probabilities");
+	for (int i=0; i<N; i++)
+		if (probs[i] <= 0.0)
+			throw Exception("Error: all probabilities must be positive");
 
-	int N = probs.size();
-	this->probs[0] = probs[0];
-	for (int i=1; i<N; i++)
-		this->probs[i] = this->probs[i-1] + probs[i];
+	// Set up the random number generator
+//	const gsl_rng_type* T = gsl_rng_default;
+	_randGen = gsl_rng_alloc(gsl_rng_default);
+	gsl_rng_set(_randGen, (unsigned long)time(NULL));
 
-	if (abs(1.0 - this->probs[N-1]) < 1e-6)    // Use epsilon threshold to check for equality, b/c dealing with floats
-		this->probs[N-1] = 1.0;  // Adjust the probabilities so that they actually sum to 1.0
-	else
-		throw Exception("Probabilities don't sum to 1");
-	
-	this->rewards = rewards;
+	// Set up the discrete distribution
+	_discretePdf = gsl_ran_discrete_preproc(N, probs);
+
+	// Set up the rewards	
+	_values = gsl_vector_alloc(N);
+	for (int i=0; i<N; i++)
+		gsl_vector_set(_values, i, rewards[i]);
+}
+
+DiscreteTarget::~DiscreteTarget()
+{
+	gsl_rng_free(_randGen);
+	gsl_ran_discrete_free(_discretePdf);
+	gsl_vector_free(_values);
 }
 
 double DiscreteTarget::Payout()
 {
-	srand((unsigned int)time(NULL));
-	double value = rand() / (double(RAND_MAX)+1);
-	int index = 0;
-	while (value < this->probs[index])
-		index++;
-	return this->rewards[index - 1];
+	size_t index = gsl_ran_discrete(_randGen, _discretePdf);
+	return gsl_vector_get(_values, index);
 }
 /*************************************************************/

@@ -41,10 +41,13 @@
 				Name="VCCLCompilerTool"
 				Optimization="0"
 				AdditionalIncludeDirectories="&quot;C:\Program Files (x86)\GnuWin32\include&quot;;C:\Users\marcotte\Documents\ELE498\cpp\Foraging\Foraging"
+				PreprocessorDefinitions="WIN32;_DEBUG;_CONSOLE;GSL_DLL;_CRT_SECURE_NO_DEPRECATE"
 				MinimalRebuild="true"
+				ExceptionHandling="1"
 				BasicRuntimeChecks="3"
 				RuntimeLibrary="3"
-				WarningLevel="3"
+				WarningLevel="4"
+				Detect64BitPortabilityProblems="false"
 				DebugInformationFormat="4"
 			/>
 			<Tool
@@ -58,9 +61,12 @@
 			/>
 			<Tool
 				Name="VCLinkerTool"
-				AdditionalDependencies="libgslcblas.a libgsl.a"
-				AdditionalLibraryDirectories="&quot;C:\Program Files (x86)\GnuWin32\lib&quot;"
+				AdditionalDependencies="libgsl_dll_d.lib libgslcblas_dll_d.lib"
+				LinkIncremental="2"
+				AdditionalLibraryDirectories="&quot;C:\Program Files (x86)\GnuWin32\src\gsl\1.8\gsl-1.8\VC8\libgsl\Debug-DLL&quot;;&quot;C:\Program Files (x86)\GnuWin32\src\gsl\1.8\gsl-1.8\VC8\libgslcblas\Debug-DLL&quot;"
 				GenerateDebugInformation="true"
+				SubSystem="1"
+				RandomizedBaseAddress="1"
 				TargetMachine="1"
 			/>
 			<Tool
