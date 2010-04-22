@@ -4,10 +4,22 @@
 #include <gsl/gsl_linalg.h>
 #include <gsl/gsl_eigen.h>
 #include <cmath>
+#include <stdio.h>
 
 #include <utils.hpp>
 
 using namespace std;
+
+void _normalize(int N, double* src, double* dest)
+{
+	double sum = 0.0;
+	for (int i=0; i<N; i++)
+		sum += src[i]*src[i];
+	double abs = sqrt(sum);
+
+	for (int i=0; i<N; i++)
+		dest[i] = src[i] / abs;
+}
 
 // Compute the determinant of N x N matrix
 double _determinant(int N, gsl_matrix* mat)
@@ -54,15 +66,44 @@ double _vecTMatVecMultiply(int M, int N, gsl_matrix* vec1, gsl_matrix* mat, gsl_
 }
 
 
-double* conePlaneIntersection(double* coneOrg, double* coneDir, double coneAngle,
-							 double* planeOrg, double* planeDir1, double* planeDir2)
+// Print a visual representation of a matrix
+void _printMatrix(int M, int N, gsl_matrix* mat, char* name)
 {
+	printf("%s:\n", name);
+	for (int i=0; i<M; i++)
+	{
+		printf("[ ");
+		for (int j=0; j<N; j++)
+		{
+			double val = gsl_matrix_get(mat, i, j);
+			printf("%.4f ", val);
+		}
+		printf(" ]\n");
+	}
+	printf("\n\n");
+}
+
+
+// Compute the elliptical intersection between a cone and a plane
+void conePlaneIntersection(double* coneOrg, double* coneDir, double coneAngle,
+							 double* planeOrg, double* planeDir1, double* planeDir2,
+							 double* ellipse)
+{
+	// Normalize directional vectors
+	double* unitConeDir = new double[3];
+	double* unitPlaneDir1 = new double[3];
+	double* unitPlaneDir2 = new double[3];
+	_normalize(3, coneDir, unitConeDir);
+	_normalize(3, planeDir1, unitPlaneDir1);
+	_normalize(3, planeDir2, unitPlaneDir2);
+
 	// Setup matrix views for input arrays
 	gsl_matrix_view mvConeOrg = gsl_matrix_view_array(coneOrg, 3, 1);
-	gsl_matrix_view mvConeDir = gsl_matrix_view_array(coneDir, 3, 1);
+	gsl_matrix_view mvConeDir = gsl_matrix_view_array(unitConeDir, 3, 1);
 	gsl_matrix_view mvPlaneOrg = gsl_matrix_view_array(planeOrg, 3, 1);
-	gsl_matrix_view mvPlaneDir1 = gsl_matrix_view_array(planeDir1, 3, 1);
-	gsl_matrix_view mvPlaneDir2 = gsl_matrix_view_array(planeDir2, 3, 1);
+	gsl_matrix_view mvPlaneDir1 = gsl_matrix_view_array(unitPlaneDir1, 3, 1);
+	gsl_matrix_view mvPlaneDir2 = gsl_matrix_view_array(unitPlaneDir2, 3, 1);
+
 
 	// Declare and allocate non-temporary matrices and other memory structures
 	gsl_matrix* matM = gsl_matrix_alloc(3, 3);
@@ -79,6 +120,7 @@ double* conePlaneIntersection(double* coneOrg, double* coneDir, double coneAngle
 	gsl_matrix* matSigma_c = gsl_matrix_calloc(2, 2);
 	gsl_matrix* matSigma = gsl_matrix_alloc(2, 2);
 
+
 	// M = coneDir * coneDir' - cos(coneAngle)^2*eye(3)
 	double cosAngSq = cos(coneAngle)*cos(coneAngle);
 	gsl_matrix_set_identity(matM);
@@ -86,11 +128,12 @@ double* conePlaneIntersection(double* coneOrg, double* coneDir, double coneAngle
 	gsl_blas_dgemm(CblasNoTrans, CblasTrans, 
 				   1.0, &mvConeDir.matrix, &mvConeDir.matrix, 
 				   -cosAngSq, matM);
+	//_printMatrix(3, 3, matM, "M");
 
 	// conePlaneDir = planeOrg - coneOrg;
 	gsl_matrix_memcpy(matConePlaneDir, &mvPlaneOrg.matrix); 
 	gsl_matrix_sub(matConePlaneDir, &mvConeOrg.matrix);
-
+	//_printMatrix(3, 1, matConePlaneDir, "conePlaneDir");
 	
 	// Build the conic matrix defined by:
 	//c1 = planeDir1' * M * planeDir1;
@@ -117,6 +160,8 @@ double* conePlaneIntersection(double* coneOrg, double* coneDir, double coneAngle
 	gsl_matrix_set(matC, 2, 1, c5);
 	gsl_matrix_set(matC, 2, 2, c6);
 
+	//_printMatrix(3, 3, matC, "C");
+
 	// Useful submatrices of C
 	gsl_matrix_view mvC_R = gsl_matrix_submatrix(matC, 0, 0, 2, 2);
 	gsl_matrix_view mvC_t = gsl_matrix_submatrix(matC, 0, 2, 2, 1);
@@ -139,8 +184,12 @@ double* conePlaneIntersection(double* coneOrg, double* coneDir, double coneAngle
 	gsl_matrix_set(matEigVals, 0, 0, gsl_vector_get(eigVals, 0));
 	gsl_matrix_set(matEigVals, 1, 1, gsl_vector_get(eigVals, 1));
 
+	//_printMatrix(2, 2, matEigVals, "Lambda");
+	//_printMatrix(2, 2, matEigVecs, "R");
+
 	// t = -R * inv(Lambda) * R' * C_t;
 	_inverse(2, matEigVals, matEigValsInv);
+	//_printMatrix(2, 2, matEigValsInv, "inv(R)");
 	gsl_matrix* matTemp1 = gsl_matrix_alloc(2, 2);
 	gsl_blas_dgemm(CblasNoTrans, CblasNoTrans, -1.0, matEigVecs, matEigValsInv, 0.0, matTemp1);
 	gsl_matrix* matTemp2 = gsl_matrix_alloc(2, 2);
@@ -148,35 +197,39 @@ double* conePlaneIntersection(double* coneOrg, double* coneDir, double coneAngle
 	gsl_blas_dgemm(CblasNoTrans, CblasNoTrans, 1.0, matTemp2, &mvC_t.matrix, 0.0, matT);
 	gsl_matrix_free(matTemp1);
 	gsl_matrix_free(matTemp2);
+	//_printMatrix(2, 1, matT, "t");
 
 	// H = [R t; 0 0 1];
 	gsl_matrix_memcpy(&gsl_matrix_submatrix(matH, 0, 0, 2, 2).matrix, matEigVecs);
 	gsl_matrix_memcpy(&gsl_matrix_submatrix(matH, 0, 2, 2, 1).matrix, matT);
 	gsl_matrix_set(matH, 2, 2, 1.0);
+	//_printMatrix(3, 3, matH, "H");
 
 	// C_c = H' * C * H;
 	matTemp1 = gsl_matrix_alloc(3,3);
 	gsl_blas_dgemm(CblasTrans, CblasNoTrans, 1.0, matH, matC, 0.0, matTemp1);
 	gsl_blas_dgemm(CblasNoTrans, CblasNoTrans, 1.0, matTemp1, matH, 0.0, matC_c);
 	gsl_matrix_free(matTemp1);
+	//_printMatrix(3, 3, matC_c, "C_c");
 
 	// a = sqrt(-C_c(3,3)/C_c(1,1));
 	// b = sqrt(-C_c(3,3)/C_c(2,2));
-	double a = sqrt(gsl_matrix_get(matC_c, 2, 2) / gsl_matrix_get(matC_c, 0, 0));
-	double b = sqrt(gsl_matrix_get(matC_c, 2, 2) / gsl_matrix_get(matC_c, 1, 1));
+	double a = sqrt(-gsl_matrix_get(matC_c, 2, 2) / gsl_matrix_get(matC_c, 0, 0));
+	double b = sqrt(-gsl_matrix_get(matC_c, 2, 2) / gsl_matrix_get(matC_c, 1, 1));
 
 	// Sigma_c = [a^2 0; 0 b^2];
 	gsl_matrix_set(matSigma_c, 0, 0, a*a);
 	gsl_matrix_set(matSigma_c, 1, 1, b*b);
+	//_printMatrix(2, 2, matSigma_c, "Sigma_c");
 
 	// Sigma = R * Sigma_c * R';
 	matTemp1 = gsl_matrix_alloc(2, 2);
 	gsl_blas_dgemm(CblasNoTrans, CblasNoTrans, 1.0, matEigVecs, matSigma_c, 0.0, matTemp1);
 	gsl_blas_dgemm(CblasNoTrans, CblasTrans, 1.0, matTemp1, matEigVecs, 0.0, matSigma);
 	gsl_matrix_free(matTemp1);
+	//_printMatrix(2, 2, matSigma, "Sigma");
 
 	// Fill in ellipse with values in matT and matSigma
-	double* ellipse = new double[6];
 	ellipse[0] = gsl_matrix_get(matT, 0, 0);
 	ellipse[1] = gsl_matrix_get(matT, 1, 0);
 	ellipse[2] = gsl_matrix_get(matSigma, 0, 0);
@@ -184,7 +237,11 @@ double* conePlaneIntersection(double* coneOrg, double* coneDir, double coneAngle
 	ellipse[4] = gsl_matrix_get(matSigma, 1, 0);
 	ellipse[5] = gsl_matrix_get(matSigma, 1, 1);
 
+
 	// Clean up
+	delete [] unitConeDir;
+	delete [] unitPlaneDir1;
+	delete [] unitPlaneDir2;
 	gsl_matrix_free(matM);
 	gsl_matrix_free(matConePlaneDir);
 	gsl_matrix_free(matC);
@@ -198,7 +255,7 @@ double* conePlaneIntersection(double* coneOrg, double* coneDir, double coneAngle
 	gsl_matrix_free(matC_c);
 	gsl_matrix_free(matSigma_c);
 	gsl_matrix_free(matSigma);
-	
-	return ellipse;
-};
+}
+
+
 
