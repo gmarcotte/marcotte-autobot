@@ -5,12 +5,13 @@
 #include <gsl/gsl_eigen.h>
 #include <cmath>
 #include <stdio.h>
+#include <windows.h>
 
 #include <utils.hpp>
 
 using namespace std;
 
-void _normalize(int N, double* src, double* dest)
+void normalize(int N, double* src, double* dest)
 {
 	double sum = 0.0;
 	for (int i=0; i<N; i++)
@@ -93,9 +94,9 @@ void conePlaneIntersection(double* coneOrg, double* coneDir, double coneAngle,
 	double* unitConeDir = new double[3];
 	double* unitPlaneDir1 = new double[3];
 	double* unitPlaneDir2 = new double[3];
-	_normalize(3, coneDir, unitConeDir);
-	_normalize(3, planeDir1, unitPlaneDir1);
-	_normalize(3, planeDir2, unitPlaneDir2);
+	normalize(3, coneDir, unitConeDir);
+	normalize(3, planeDir1, unitPlaneDir1);
+	normalize(3, planeDir2, unitPlaneDir2);
 
 	// Setup matrix views for input arrays
 	gsl_matrix_view mvConeOrg = gsl_matrix_view_array(coneOrg, 3, 1);
@@ -229,13 +230,14 @@ void conePlaneIntersection(double* coneOrg, double* coneDir, double coneAngle,
 	gsl_matrix_free(matTemp1);
 	//_printMatrix(2, 2, matSigma, "Sigma");
 
+	double theta = atan2(gsl_matrix_get(matEigVecs, 1, 0), gsl_matrix_get(matEigVecs, 0, 0));
+
 	// Fill in ellipse with values in matT and matSigma
 	ellipse[0] = gsl_matrix_get(matT, 0, 0);
 	ellipse[1] = gsl_matrix_get(matT, 1, 0);
-	ellipse[2] = gsl_matrix_get(matSigma, 0, 0);
-	ellipse[3] = gsl_matrix_get(matSigma, 0, 1);
-	ellipse[4] = gsl_matrix_get(matSigma, 1, 0);
-	ellipse[5] = gsl_matrix_get(matSigma, 1, 1);
+	ellipse[2] = a;
+	ellipse[3] = b;
+	ellipse[4] = theta;
 
 
 	// Clean up
@@ -258,4 +260,71 @@ void conePlaneIntersection(double* coneOrg, double* coneDir, double coneAngle,
 }
 
 
+// Create points to simulate ellipse using beziers
+void EllipseToBezier(RECT& r, POINT* cCtlPt)
+{
+    // MAGICAL CONSTANT to map ellipse to beziers
+    //  			2/3*(sqrt(2)-1) 
+    const double EToBConst =	0.2761423749154; 
 
+    SIZE offset;
+	offset.cx = (int)((r.right-r.left) * EToBConst);
+	offset.cy = (int)((r.bottom-r.top) * EToBConst);
+//  Use the following line instead for mapping systems where +ve Y is upwards
+//  CSize offset((int)(r.Width() * EToBConst), -(int)(r.Height() * EToBConst));
+
+    POINT centre;
+	centre.x = (r.left + r.right) / 2;
+	centre.y = (r.top + r.bottom) / 2;
+
+    cCtlPt[0].x  =                            //------------------------/
+    cCtlPt[1].x  =                            //                        /
+    cCtlPt[11].x =                            //        2___3___4       /
+    cCtlPt[12].x = r.left;                    //     1             5    /
+    cCtlPt[5].x  =                            //     |             |    /
+    cCtlPt[6].x  =                            //     |             |    /
+    cCtlPt[7].x  = r.right;                   //     0,12          6    /
+    cCtlPt[2].x  =                            //     |             |    /
+    cCtlPt[10].x = centre.x - offset.cx;      //     |             |    /
+    cCtlPt[4].x  =                            //    11             7    /
+    cCtlPt[8].x  = centre.x + offset.cx;      //       10___9___8       /
+    cCtlPt[3].x  =                            //                        /
+    cCtlPt[9].x  = centre.x;                  //------------------------*
+
+    cCtlPt[2].y  =
+    cCtlPt[3].y  =
+    cCtlPt[4].y  = r.top;
+    cCtlPt[8].y  =
+    cCtlPt[9].y  =
+    cCtlPt[10].y = r.bottom;
+    cCtlPt[7].y  =
+    cCtlPt[11].y = centre.y + offset.cy;
+    cCtlPt[1].y  =
+    cCtlPt[5].y  = centre.y - offset.cy;
+    cCtlPt[0].y  =
+    cCtlPt[12].y =
+    cCtlPt[6].y  = centre.y;
+}
+
+
+void Rotate(double radians, const POINT& c, POINT* vCtlPt, UINT Cnt)
+{    
+    for (int i = Cnt-1; i>=0; --i)
+    {
+		double x = vCtlPt[i].x - c.x;
+		double y = vCtlPt[i].y - c.y;
+		double r = sqrt(x*x + y*y);
+		double theta = atan2(y, x);
+		theta += radians;
+		vCtlPt[i].x = (int)(r*cos(theta) + c.x);
+		vCtlPt[i].y = (int)(r*sin(theta) + c.y);
+    }
+}
+
+
+void CrossProduct(double* v1, double* v2, double* dest)
+{
+	dest[0] = v1[1]*v2[2] - v1[2]*v2[1];
+	dest[1] = v1[2]*v2[0] - v1[0]*v2[2];
+	dest[2] = v1[0]*v2[1] - v1[1]*v2[0];
+}
