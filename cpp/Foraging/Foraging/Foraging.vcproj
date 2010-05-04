@@ -46,7 +46,7 @@
 				ExceptionHandling="1"
 				BasicRuntimeChecks="3"
 				RuntimeLibrary="3"
-				WarningLevel="4"
+				WarningLevel="3"
 				Detect64BitPortabilityProblems="false"
 				DebugInformationFormat="4"
 			/>
@@ -66,6 +66,7 @@
 				AdditionalLibraryDirectories="&quot;C:\Program Files (x86)\GnuWin32\src\gsl\1.8\gsl-1.8\VC8\libgsl\Debug-DLL&quot;;&quot;C:\Program Files (x86)\GnuWin32\src\gsl\1.8\gsl-1.8\VC8\libgslcblas\Debug-DLL&quot;"
 				GenerateDebugInformation="true"
 				SubSystem="1"
+				EntryPointSymbol="WinMain"
 				RandomizedBaseAddress="1"
 				TargetMachine="1"
 			/>
@@ -173,11 +174,23 @@
 			UniqueIdentifier="{4FC737F1-C7A5-4376-A066-2A32D752A2FF}"
 			>
 			<File
+				RelativePath=".\controller.cpp"
+				>
+			</File>
+			<File
 				RelativePath=".\environment.cpp"
 				>
 			</File>
 			<File
 				RelativePath=".\main.cpp"
+				>
+			</File>
+			<File
+				RelativePath=".\tasks.cpp"
+				>
+			</File>
+			<File
+				RelativePath=".\tests.cpp"
 				>
 			</File>
 			<File
@@ -191,11 +204,19 @@
 			UniqueIdentifier="{93995380-89BD-4b04-88EB-625FBE52EBFB}"
 			>
 			<File
+				RelativePath=".\config.h"
+				>
+			</File>
+			<File
+				RelativePath=".\controller.hpp"
+				>
+			</File>
+			<File
 				RelativePath=".\environment.hpp"
 				>
 			</File>
 			<File
-				RelativePath=".\forager.hpp"
+				RelativePath=".\tasks.hpp"
 				>
 			</File>
 			<File
