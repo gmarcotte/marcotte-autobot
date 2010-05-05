@@ -93,6 +93,7 @@ public:
 	void Render(HDC hdc, int left, int top, int right, int bottom);
 	void RenderForagerEllipse(HDC hdc, RECT box, Forager* fgr);
 	void RenderForagerShadow(HDC hdc, RECT box, Forager* fgr);
+	virtual void SwitchRedAndBlue();
 };
 /***************************/
 
@@ -104,9 +105,12 @@ private:
 	int _numNeutral;
 	int _numRed;
 	int _numBlue;
+
+	double _rRwd, _rPrb, _bRwd, _bPrb;
 	
 public:
 	BasicBinaryField(int N, double nPct, double rPct, double rRwd, double rPrb, double bPct, double bRwd, double bPrb, double side = 10.0);
+	void SwitchRedAndBlue();
 	int NumNeutral() {return _numNeutral;}
 	int NumRed() {return _numRed;}
 	int NumBlue() {return _numBlue;}

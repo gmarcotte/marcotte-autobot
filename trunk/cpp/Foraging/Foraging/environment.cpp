@@ -62,16 +62,32 @@ DiscreteTarget::DiscreteTarget(int N, double* probs, double* rewards, COLOR clr)
 : BaseTarget(clr)
 {
 	for (int i=0; i<N; i++)
-		if (probs[i] <= 0.0)
+		if (probs[i] < 0.0)
 			throw Exception("Error: all probabilities must be positive");
 
-	// Set up the discrete distribution
-	_discretePdf = gsl_ran_discrete_preproc(N, probs);
-
-	// Set up the rewards	
-	_values = gsl_vector_alloc(N);
+	bool singleton = false;
 	for (int i=0; i<N; i++)
-		gsl_vector_set(_values, i, rewards[i]);
+	{
+		if (probs[i] == 1.0)
+		{
+			_discretePdf = gsl_ran_discrete_preproc(1, &probs[i]);
+			_values = gsl_vector_alloc(1);
+			gsl_vector_set(_values, i, rewards[i]);
+			singleton = true;
+			break;
+		}
+	}
+
+	if (!singleton)
+	{
+		// Set up the discrete distribution
+		_discretePdf = gsl_ran_discrete_preproc(N, probs);
+
+		// Set up the rewards	
+		_values = gsl_vector_alloc(N);
+		for (int i=0; i<N; i++)
+			gsl_vector_set(_values, i, rewards[i]);
+	}
 }
 
 DiscreteTarget::~DiscreteTarget()
@@ -338,6 +354,11 @@ void Field::RenderForagerEllipse(HDC hdc, RECT box, Forager *fgr)
 	SelectObject(hdc, OldPen);
 	DeleteObject(YellowPen);
 }
+
+void Field::SwitchRedAndBlue()
+{
+	throw Exception("Error: SwitchRedAndBlue not implemented for base Field");
+}
 /********************************************************************************/
 
 
@@ -351,6 +372,10 @@ BasicBinaryField::BasicBinaryField(int N, double nPct,
 	_numNeutral = 0;
 	_numRed = 0;
 	_numBlue = 0;
+	_rRwd = rRwd;
+	_rPrb = rPrb;
+	_bRwd = bRwd;
+	_bPrb = bPrb;
 	
 	// Initialize targets
 	double probs[3] = {rPct, bPct, nPct};
@@ -385,6 +410,29 @@ BasicBinaryField::BasicBinaryField(int N, double nPct,
 		}
 	}
 	delete fieldPicker;
+}
+
+void BasicBinaryField::SwitchRedAndBlue()
+{
+	double rPrbs[2] = {_rPrb, 1.0 - _rPrb};
+	double rRwds[2] = {_rRwd, 0.0};
+	double bPrbs[2] = {_bPrb, 1.0 - _bPrb};
+	double bRwds[2] = {_bRwd, 0.0};
+	for (int i=0; i<_height; i++)
+	{
+		for (int j=0; j<_width; j++)
+		{
+			int index = GetIndex(i, j);
+			if (_targets[index]->GetColor() == RED)
+			{
+				ReplaceTarget(i, j, new DiscreteTarget(2, bPrbs, bRwds, RED));
+			}
+			else if (_targets[index]->GetColor() == BLUE)
+			{
+				ReplaceTarget(i, j, new DiscreteTarget(2, rPrbs, rRwds, BLUE));
+			}
+		}
+	}
 }
 /******************************************************************************************/
 
@@ -574,8 +622,8 @@ void Forager::Move(double dt)
 
 void Forager::ChangeToRandomHeading()
 {
-	double theta = gsl_rng_uniform(get_rng()) * (2*PI);
-	double phi = gsl_rng_uniform(get_rng()) * (PI / 2.0);
+	double theta = rand_double_uniform(0.0, 2*PI);
+	double phi = rand_double_uniform(PI/4.0, PI/2.0);
 	_heading[0] = cos(theta)*cos(phi);
 	_heading[1] = sin(theta)*cos(phi);
 	_heading[2] = -sin(phi);
