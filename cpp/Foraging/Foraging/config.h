@@ -14,21 +14,21 @@ const double sim_dT = 1.0;
 
 // Field parameters
 const UINT fieldSide = 60;
-const double neutralPct = 0.1;
+const double neutralPct = 0.2;
 
-const double redPct = 0.6;
-const double redRwd = 8.0;
-const double redPrb = 0.3;
+const double redPct = 0.4;
+const double redRwd = 0.7;
+const double redPrb = 1.0;
 
-const double bluePct = 0.3;
-const double blueRwd = 3.0;
-const double bluePrb = 0.8;
+const double bluePct = 0.4;
+const double blueRwd = 1.0;
+const double bluePrb = 0.2;
 
 // Forager parameters
-const double foragerSpeed = 1.0;
+const double foragerSpeed = 1.5;
 const double visualConeAngle = 0.1745;  //radians, 10 degrees
 const double projectionRadius = 1.0;
-const double projection_dR = 1.0 / 200.0;
-const double projection_dTheta = 2*3.1415926 / 200.0;
+const double projection_dR = 1.0 / 50.0;
+const double projection_dTheta = 2*3.1415926 / 50.0;
 
 #endif // CONFIG_H

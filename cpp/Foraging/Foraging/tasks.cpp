@@ -73,12 +73,20 @@ void ForagingTask::Update(double dt)
 
 void ForagingTask::Run(double dt)
 {
-	double time = 0.0;
+	//double time = 0.0;
+	int switch_point = gsl_rng_uniform_int(get_rng(), _trials/2) + _trials/4;
+	while (_completed < switch_point)
+	{
+		Update(dt);
+	//	time += dt;
+	}
+	// Switch flower contingencies
+	cout << "SWITCHING PROBABILITIES" << endl;
+	_field->SwitchRedAndBlue();
 	while (_completed < _trials)
 	{
 		Update(dt);
-		time += dt;
-		//cout << "Time: " << time << ", Z: " << curr_position[2] << endl;
+	//	time += dt;
 	}
 	cout <<"Total Reward: " << _forager->GetReward() << endl;
 }
