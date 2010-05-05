@@ -1,6 +1,7 @@
 #include <cmath>
 #include <ctime>
 
+#include <controller.hpp>
 #include <environment.hpp>
 #include <utils.hpp>
 
@@ -64,11 +65,6 @@ DiscreteTarget::DiscreteTarget(int N, double* probs, double* rewards, COLOR clr)
 		if (probs[i] <= 0.0)
 			throw Exception("Error: all probabilities must be positive");
 
-	// Set up the random number generator
-//	const gsl_rng_type* T = gsl_rng_default;
-	_randGen = gsl_rng_alloc(gsl_rng_default);
-	gsl_rng_set(_randGen, (unsigned long)time(NULL));
-
 	// Set up the discrete distribution
 	_discretePdf = gsl_ran_discrete_preproc(N, probs);
 
@@ -80,14 +76,13 @@ DiscreteTarget::DiscreteTarget(int N, double* probs, double* rewards, COLOR clr)
 
 DiscreteTarget::~DiscreteTarget()
 {
-	gsl_rng_free(_randGen);
 	gsl_ran_discrete_free(_discretePdf);
 	gsl_vector_free(_values);
 }
 
 double DiscreteTarget::Payout()
 {
-	size_t index = gsl_ran_discrete(_randGen, _discretePdf);
+	size_t index = gsl_ran_discrete(get_rng(), _discretePdf);
 	return gsl_vector_get(_values, index);
 }
 /*************************************************************/
@@ -518,6 +513,11 @@ Forager::~Forager()
 	delete _camera;
 }
 
+void Forager::SetController(Controller* ctrl)
+{
+	_controller = ctrl;
+}
+
 void Forager::GetPosition(double* pos)
 {
 	pos[0] = _position[0];
@@ -570,6 +570,23 @@ void Forager::Move(double dt)
 	_position[0] += _heading[0]*_speed*dt;
 	_position[1] += _heading[1]*_speed*dt;
 	_position[2] += _heading[2]*_speed*dt;
+}
+
+void Forager::ChangeToRandomHeading()
+{
+	double theta = gsl_rng_uniform(get_rng()) * (2*PI);
+	double phi = gsl_rng_uniform(get_rng()) * (PI / 2.0);
+	_heading[0] = cos(theta)*cos(phi);
+	_heading[1] = sin(theta)*cos(phi);
+	_heading[2] = -sin(phi);
+	normalize(3, _heading, _heading); // Just to be sure it's a unit vector
+}
+
+void Forager::Update(Field* field)
+{
+	UpdateVisualField(field);
+	if (_controller->ChangeDirection(_camera->GetPct(RED), _camera->GetPct(BLUE), _camera->GetPct(GRAY), 0.0))
+		ChangeToRandomHeading();
 }
 
 void Forager::UpdateVisualField(Field* field)
@@ -629,6 +646,8 @@ void Forager::PrintCameraView()
 void Forager::GiveReward(double rwd)
 {
 	_reward += rwd;
+	_controller->ChangeDirection(_camera->GetPct(RED), _camera->GetPct(BLUE), _camera->GetPct(GRAY), rwd);
+	_controller->ResetState();
 }
 
 double Forager::GetReward()

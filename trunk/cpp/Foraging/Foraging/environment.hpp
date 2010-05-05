@@ -6,6 +6,8 @@
 #include <gsl/gsl_randist.h>
 #include <gsl/gsl_blas.h>
 
+#include <controller.hpp>
+
 #include <windows.h>
 
 #include <stdexcept>
@@ -52,7 +54,6 @@ public:
 class DiscreteTarget : public BaseTarget
 {
 private:
-	gsl_rng* _randGen;
 	gsl_ran_discrete_t* _discretePdf;
 	gsl_vector* _values;
 
@@ -153,12 +154,14 @@ protected:
 	double _heading[3];
 	double _speed;
 	Camera* _camera;
+	Controller* _controller;
 
 public:
 	Forager(double x, double y, double z,
 		    double vx, double vy, double vz, double speed,
 			double cone_angle, double proj_radius, double proj_dr, double proj_dth);
 	~Forager();
+	void SetController(Controller* ctrl);
 	void GetPosition(double* pos);
 	void GetHeader(double* head);
 	double GetCameraAngle();
@@ -168,6 +171,8 @@ public:
 	void GiveReward(double rwd);
 	double GetReward();
 	void Move(double dt);
+	void ChangeToRandomHeading();
+	void Update(Field* field);
 	void UpdateVisualField(Field* field);
 	void RenderCameraView(HDC hdc, RECT box);
 	void PrintCameraView();

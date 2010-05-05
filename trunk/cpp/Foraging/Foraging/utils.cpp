@@ -3,13 +3,59 @@
 #include <gsl/gsl_permutation.h>
 #include <gsl/gsl_linalg.h>
 #include <gsl/gsl_eigen.h>
+#include <gsl/gsl_rng.h>
 #include <cmath>
+#include <ctime>
 #include <stdio.h>
 #include <windows.h>
 
 #include <utils.hpp>
 
 using namespace std;
+
+
+
+// Implement the random number generation as a singleton
+gsl_rng* randGen = NULL;
+
+void init_rng()
+{
+	randGen = gsl_rng_alloc(gsl_rng_default);
+	gsl_rng_set(randGen, (unsigned long)time(NULL));
+}
+
+gsl_rng* get_rng()
+{
+	if (randGen == NULL)
+		throw Exception("Error: Random number generator has not been initialized.");
+
+	return randGen;
+}
+
+void free_rng()
+{
+	gsl_rng_free(randGen);
+	randGen = NULL;
+}
+
+bool rand_bool(double p)
+{
+	if (p < 0.0 || p > 1.0)
+		throw Exception("Error: Probabilities must be in [0, 1]");
+
+	double val = gsl_rng_uniform(get_rng());
+	return (val <= p);
+}
+
+double rand_double_uniform(double min, double max)
+{
+	double val = gsl_rng_uniform(get_rng());
+	return (min + val*(max-min));
+}
+
+/********************************************************************/
+
+
 
 void normalize(int N, double* src, double* dest)
 {

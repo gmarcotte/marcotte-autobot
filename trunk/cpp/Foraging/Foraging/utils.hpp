@@ -3,10 +3,20 @@
 
 #ifndef UTILS_HPP
 #define UTILS_HPP
+#include <gsl/gsl_rng.h>
 
 #include <windows.h>
 
 const double PI = 3.1415926;
+
+// Random number sampling
+void init_rng();
+gsl_rng* get_rng();
+void free_rng();
+bool rand_bool(double p = 0.5);
+double rand_double_uniform(double min, double max);
+
+
 
 // Custom base exception class for error handling
 class Exception
